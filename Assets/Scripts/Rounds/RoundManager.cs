@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Smashball.Input;
 using Smashball.UI;
-using Unity.VisualScripting;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -18,6 +17,7 @@ namespace Smashball.Gameplay
         [SerializeField] private float serveMeterSpeed = 1.5f;
         [SerializeField] private int scoreToWin = 3;
 
+
         public Color PlayerColor => playerColor;
         public Color OpponentColor => opponentColor;
         public int StartingPlayer { get; private set; }
@@ -25,6 +25,7 @@ namespace Smashball.Gameplay
         public BallController CurrentBall { get; private set; }
         public RoundState State { get; private set; }
 
+        private ICameraShake cameraShake;
         private IArenaBounds arenaBounds;
         private IInputService inputService;
         private UIManager uiManager;
@@ -32,7 +33,9 @@ namespace Smashball.Gameplay
         private float serveMeterTimer;
         private int playerScore;
         private int opponentScore;
-
+        private CameraPoseController camPose;
+        private CameraFollow camFollow;
+        
         private void Awake()
         {
             Services.Register<IRoundService>(this);
@@ -43,7 +46,11 @@ namespace Smashball.Gameplay
             inputService = Services.Get<IInputService>();
             uiManager = Services.Get<UIManager>();
             arenaBounds = Services.Get<IArenaBounds>();
+            cameraShake = Services.Get<ICameraShake>();
             uiManager.ShowJoystick(false);
+            var cam = Camera.main;
+            camPose = cam.transform.parent.GetComponent<CameraPoseController>();
+            camFollow = cam.transform.parent.GetComponent<CameraFollow>();
         }
 
         private void Update()
@@ -102,6 +109,8 @@ namespace Smashball.Gameplay
             AddPlayer(false, false);
             var startingPlayer = Random.Range(0, 2);
             DoServe(startingPlayer);
+            
+            camFollow.SetTarget(players[1].transform);
         }
 
         private void AddPlayer(bool isTopPlayer, bool isBot)
@@ -113,12 +122,12 @@ namespace Smashball.Gameplay
             {
                 var bot = go.AddComponent<BotController>();
                 bot.Init();
-                pc.Init(isTopPlayer, bot.Input, this, arenaBounds);
+                pc.Init(isTopPlayer, bot.Input, this, arenaBounds, cameraShake);
             }
             else
             {
                 var humanInput = new HumanPlayerInput(inputService);
-                pc.Init(isTopPlayer, humanInput, this, arenaBounds);
+                pc.Init(isTopPlayer, humanInput, this, arenaBounds, cameraShake);
             }
 
             players.Add(pc);
@@ -129,6 +138,8 @@ namespace Smashball.Gameplay
             uiManager.ServeUI.Show(false);
             uiManager.ShowJoystick(true);
             State = RoundState.Playing;
+            _ = camPose.ToGameplayAsync();
+            camFollow.SetEnabled(true);
         }
 
         public async Task OnPlayerHitByBall(PlayerController player)
@@ -163,7 +174,10 @@ namespace Smashball.Gameplay
             StartingPlayer = startingPlayer;
             State = RoundState.Serving;
             ResetServeMeter();
-            uiManager.ServeUI.Show(StartingPlayer != 0);
+            var playerServing = StartingPlayer != 0;
+            uiManager.ServeUI.Show(playerServing);
+            camFollow.SetEnabled(!playerServing);
+            if (playerServing) _ = camPose.ToServeAsync();
         }
     }
 }

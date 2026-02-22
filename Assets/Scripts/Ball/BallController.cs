@@ -111,6 +111,9 @@ namespace Smashball.Gameplay
         
         private void ApplyHoming(float dt)
         {
+            if (targetPlayer == null)
+                return;
+            
             Vector3 aimPos = targetPlayer.transform.position;
 
             Vector3 toTarget = aimPos - transform.position;

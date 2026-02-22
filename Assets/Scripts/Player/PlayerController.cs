@@ -20,8 +20,9 @@ namespace Smashball.Gameplay
         private IRoundService roundManager;
         private bool isTopPlayer;
         private float nextReleaseAllowedTime;
-        
-        public void Init(bool isTopPlayer, IPlayerInput input, IRoundService round, IArenaBounds bounds)
+        private ICameraShake cameraShake;
+
+        public void Init(bool isTopPlayer, IPlayerInput input, IRoundService round, IArenaBounds bounds, ICameraShake shake)
         {
             rangeFeedback.SetActive(!isTopPlayer);
             rangeFeedback.transform.localScale = 2f * new Vector3(strikeRadius, strikeRadius, 1f);
@@ -29,6 +30,7 @@ namespace Smashball.Gameplay
             this.input = input;
             arenaBounds = bounds;
             roundManager = round;
+            cameraShake = shake;
             ResetPosition();
         }
 
@@ -63,7 +65,7 @@ namespace Smashball.Gameplay
         private bool CheckBallCollision()
         {
             var ball = roundManager.CurrentBall;
-            if (ball.LastStriker == this && Time.time < ball.IgnorePlayerCollisionUntilTime)
+            if (ball == null || ball.LastStriker == this && Time.time < ball.IgnorePlayerCollisionUntilTime)
                 return false;
 
             Vector3 prevBallPos = ball.PreviousPosition;
@@ -146,6 +148,7 @@ namespace Smashball.Gameplay
             toBall.y = 0f;
             Vector3 dir = toBall.sqrMagnitude < 0.0001f ? transform.forward : toBall.normalized;
             ball.ApplyStrike(dir, quality, roundManager.GetOtherPlayer(this), this);
+            cameraShake?.Shake(quality);
         }
         
         private static float ComputeQuality(float dist, float perfectR, float tolerance)
