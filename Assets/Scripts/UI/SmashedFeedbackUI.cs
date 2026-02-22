@@ -23,7 +23,7 @@ namespace Smashball.UI
         private CancellationTokenSource cts;
         private IRoundService roundManager;
 
-        private void Awake()
+        public void Init()
         {
             cam = Camera.main;
             canvas = root.GetComponentInParent<Canvas>();

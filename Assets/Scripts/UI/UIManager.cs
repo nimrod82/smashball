@@ -26,6 +26,7 @@ namespace Smashball.UI
             inGameUICanvas.SetActive(false);
             gameOverUI.gameObject.SetActive(false);
             playButton.onClick.AddListener(Play);
+            smashFeedback.Init();
         }
 
         public void Play()

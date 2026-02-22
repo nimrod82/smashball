@@ -56,6 +56,7 @@ namespace Smashball.Gameplay
                     }
                     else
                     {
+                        cameraShake?.Shake(1f);
                         roundManager.OnPlayerHitByBall(this);
                     }
                     break;
