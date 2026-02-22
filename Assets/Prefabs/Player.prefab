@@ -159,6 +159,7 @@ MonoBehaviour:
   boundsPadding: 1
   strikeRadius: 2
   toleranceRadius: 1
+  strikeCooldownSeconds: 0.2
 --- !u!1 &9194548128306256120
 GameObject:
   m_ObjectHideFlags: 0

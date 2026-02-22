@@ -1,7 +1,8 @@
+using Smashball.Input;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-namespace Smashball.Input
+namespace Smashball.UI
 {
     public sealed class VirtualJoystickUI : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
     {

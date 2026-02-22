@@ -4,30 +4,67 @@ namespace Smashball.Gameplay
 {
     public sealed class BotController : MonoBehaviour
     {
+        [SerializeField] private float minServeDelay = 0.4f;
+        [SerializeField] private float maxServeDelay = 1.2f;
+
+        private float serveDelayTimer;
+        private float currentServeDelay;
+        private bool waitingServe;
         private BotInput input;
-        private IArenaBounds bounds;
         private IRoundService roundManager;
+        private PlayerController playerController;
 
         public IPlayerInput Input => input;
 
         public void Init()
         {
-            bounds = Services.Get<IArenaBounds>();
             roundManager = Services.Get<IRoundService>();
+            playerController = GetComponent<PlayerController>();
             input = new BotInput();
         }
-
+        
         private void Update()
         {
+            switch (roundManager.State)
+            {
+                case RoundState.Menu:
+                    break;
+                case RoundState.Serving:
+                    UpdateServe();
+                    break;
+                case RoundState.Playing:
+                    UpdateMovementAndStrike();
+                    break;
+            }
+        }
+
+        private void UpdateMovementAndStrike()
+        {
             input.BeginFrame();
-            
-            Vector3 botPos = transform.position;
-            Vector3 ballPos = roundManager.CurrentBall.transform.position;
-            
-            Vector3 toBall = ballPos - botPos;
-            toBall.y = 0f;
-            
             input.Release();
+        }
+        
+        private void UpdateServe()
+        {
+            input.BeginFrame();
+
+            if (!roundManager.IsStartingPlayer(playerController))
+                return;
+
+            if (!waitingServe)
+            {
+                waitingServe = true;
+                serveDelayTimer = 0f;
+                currentServeDelay = Random.Range(minServeDelay, maxServeDelay);
+            }
+
+            serveDelayTimer += Time.deltaTime;
+
+            if (serveDelayTimer >= currentServeDelay)
+            {
+                input.Release();
+                waitingServe = false;
+            }
         }
     }
 }

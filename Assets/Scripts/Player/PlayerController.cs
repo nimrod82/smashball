@@ -10,11 +10,13 @@ namespace Smashball.Gameplay
         [SerializeField] private float boundsPadding = 1f;
         [SerializeField] private float strikeRadius = 3f;
         [SerializeField] private float toleranceRadius = 1f;
+        [SerializeField] private float strikeCooldownSeconds = 0.2f;
         
         private IPlayerInput input;
         private IArenaBounds arenaBounds;
         private IRoundService roundManager;
         private bool isTopPlayer;
+        private float nextReleaseAllowedTime;
         
         public void Init(bool isTopPlayer, IPlayerInput input)
         {
@@ -29,8 +31,30 @@ namespace Smashball.Gameplay
 
         private void Update()
         {
-            UpdateMovement();
-            UpdateStrike();
+            switch (roundManager.State)
+            {
+                case RoundState.Menu:
+                    break;
+                case RoundState.Serving:
+                    UpdateServe();
+                    break;
+                case RoundState.Playing:
+                    UpdateMovement();
+                    UpdateStrike();
+                    break;
+            }
+        }
+        
+        private bool CanConsumeRelease()
+        {
+            if (Time.time < nextReleaseAllowedTime)
+                return false;
+
+            if (!input.ReleasedThisFrame)
+                return false;
+
+            nextReleaseAllowedTime = Time.time + strikeCooldownSeconds;
+            return true;
         }
 
         private void UpdateMovement()
@@ -56,7 +80,9 @@ namespace Smashball.Gameplay
         private void UpdateStrike()
         {
             if (!input.ReleasedThisFrame) return;
-
+            if (!CanConsumeRelease())
+                return;
+            
             var ball = roundManager.CurrentBall;
             if (ball == null) return;
 
@@ -81,11 +107,26 @@ namespace Smashball.Gameplay
             return Mathf.Clamp01(1f - error / tolerance);
         }
 
-        public void StartServing()
+        private void UpdateServe()
         {
-            roundManager.CurrentBall.SetPosition(transform.position);
-            roundManager.CurrentBall.gameObject.SetActive(true);
-            roundManager.CurrentBall.ApplyStrike(Vector3.forward, 1f, roundManager.GetOtherPlayer(this));
+            if (!roundManager.IsStartingPlayer(this))
+                return;
+
+            if (!input.ReleasedThisFrame)
+                return;
+
+            var otherPlayer = roundManager.GetOtherPlayer(this);
+            var ball = roundManager.CurrentBall;
+
+            ball.SetPosition(transform.position);
+            ball.gameObject.SetActive(true);
+
+            var dir = (otherPlayer.transform.position - transform.position).normalized;
+            float serveQuality = roundManager.ServeQuality;
+
+            roundManager.OnServed();
+            ball.ApplyStrike(dir, serveQuality, otherPlayer);
+            nextReleaseAllowedTime = Time.time + strikeCooldownSeconds;
         }
     }
 }
