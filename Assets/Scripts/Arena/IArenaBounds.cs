@@ -4,6 +4,9 @@ namespace Smashball.Gameplay
 {
     public interface IArenaBounds
     {
-        Vector3 ClampToHalf(Vector3 pos, bool isPositiveSide, float padding);
+        Bounds GetBounds();
+        Vector3 ClampToHalf(Vector3 pos, bool isTopPlayer, float padding);
+        Vector3 TopPlayerSpawnPosition { get; }
+        Vector3 BottomPlayerSpawnPosition { get; }
     }
 }

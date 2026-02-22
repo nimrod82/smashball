@@ -4,47 +4,56 @@ namespace Smashball.Gameplay
 {
     public sealed class ArenaBounds : MonoBehaviour, IArenaBounds
     {
-        public enum SplitAxis { X, Z }
-
         [SerializeField] private BoxCollider courtBounds;
-        [SerializeField] private SplitAxis splitAxis = SplitAxis.Z;
+        [SerializeField] private Transform bottomPlayerSpawn;
+        [SerializeField] private Transform topPlayerSpawn;
 
-        public Bounds Court => courtBounds.bounds;
+        public Vector3 TopPlayerSpawnPosition => topPlayerSpawn.position;
+        public Vector3 BottomPlayerSpawnPosition => bottomPlayerSpawn.position;
         
         private void Awake()
         {
             Services.Register<IArenaBounds>(this);
         }
 
-        public Vector3 ClampToHalf(Vector3 pos, bool isPositiveSide, float padding)
+        public Bounds GetBounds()
         {
-            var b = Court;
+            return courtBounds.bounds;
+        }
+        
+        public Vector3 Clamp(Vector3 pos, float padding)
+        {
+            var bounds = courtBounds.bounds;
 
-            float minX = b.min.x + padding;
-            float maxX = b.max.x - padding;
-            float minZ = b.min.z + padding;
-            float maxZ = b.max.z - padding;
-
-            float midX = (b.min.x + b.max.x) * 0.5f;
-            float midZ = (b.min.z + b.max.z) * 0.5f;
+            float minX = bounds.min.x + padding;
+            float maxX = bounds.max.x - padding;
+            float minZ = bounds.min.z + padding;
+            float maxZ = bounds.max.z - padding;
 
             pos.x = Mathf.Clamp(pos.x, minX, maxX);
             pos.z = Mathf.Clamp(pos.z, minZ, maxZ);
 
-            if (splitAxis == SplitAxis.Z)
-            {
-                if (isPositiveSide)
-                    pos.z = Mathf.Clamp(pos.z, midZ + padding, maxZ);
-                else
-                    pos.z = Mathf.Clamp(pos.z, minZ, midZ - padding);
-            }
+            return pos;
+        }
+
+        public Vector3 ClampToHalf(Vector3 pos, bool isTopPlayer, float padding)
+        {
+            var bounds = courtBounds.bounds;
+
+            float minX = bounds.min.x + padding;
+            float maxX = bounds.max.x - padding;
+            float minZ = bounds.min.z + padding;
+            float maxZ = bounds.max.z - padding;
+
+            float midZ = (bounds.min.z + bounds.max.z) * 0.5f;
+
+            pos.x = Mathf.Clamp(pos.x, minX, maxX);
+            pos.z = Mathf.Clamp(pos.z, minZ, maxZ);
+
+            if (isTopPlayer)
+                pos.z = Mathf.Clamp(pos.z, midZ + padding, maxZ);
             else
-            {
-                if (isPositiveSide)
-                    pos.x = Mathf.Clamp(pos.x, midX + padding, maxX);
-                else
-                    pos.x = Mathf.Clamp(pos.x, minX, midX - padding);
-            }
+                pos.z = Mathf.Clamp(pos.z, minZ, midZ - padding);
 
             return pos;
         }
