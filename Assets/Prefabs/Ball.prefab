@@ -118,6 +118,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0b931684198b7a4399e06e8a340e8cf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  sphereCollider: {fileID: 742371280457055340}
   turnRateDegPerSec: 60
   minSpeed: 8
   maxSpeed: 20

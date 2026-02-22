@@ -4,6 +4,8 @@ namespace Smashball.Gameplay
     {
         Menu,
         Serving,
-        Playing
+        Playing,
+        Smashed,
+        GameOver
     }
 }

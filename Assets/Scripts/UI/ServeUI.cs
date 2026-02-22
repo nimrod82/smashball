@@ -20,8 +20,6 @@ namespace Smashball.UI
 
             minY = -halfHeight;
             maxY = halfHeight;
-            
-            Hide();
         }
 
         private void Start()
@@ -29,16 +27,10 @@ namespace Smashball.UI
             roundManager = Services.Get<IRoundService>();
         }
 
-        public void Show()
+        public void Show(bool show)
         {
-            running = true;
-            gameObject.SetActive(true);
-        }
-
-        public void Hide()
-        {
-            running = false;
-            gameObject.SetActive(false);
+            running = show;
+            gameObject.SetActive(show);
         }
 
         private void Update()

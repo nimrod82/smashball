@@ -1,25 +1,37 @@
+using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Smashball.Input;
 using Smashball.UI;
+using Unity.VisualScripting;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace Smashball.Gameplay
 {
     public sealed class RoundManager : MonoBehaviour, IRoundService
     {
+        [SerializeField] private Color opponentColor;
+        [SerializeField] private Color playerColor;
         [SerializeField] private GameObject playerPrefab;
         [SerializeField] private GameObject ballPrefab;
         [SerializeField] private float serveMeterSpeed = 1.5f;
+        [SerializeField] private int scoreToWin = 3;
 
+        public Color PlayerColor => playerColor;
+        public Color OpponentColor => opponentColor;
         public int StartingPlayer { get; private set; }
-        public float ServeQuality { get; private set; } 
+        public float ServeQuality { get; private set; }
         public BallController CurrentBall { get; private set; }
         public RoundState State { get; private set; }
-        
+
+        private IArenaBounds arenaBounds;
         private IInputService inputService;
         private UIManager uiManager;
         private List<PlayerController> players = new();
         private float serveMeterTimer;
+        private int playerScore;
+        private int opponentScore;
 
         private void Awake()
         {
@@ -30,10 +42,10 @@ namespace Smashball.Gameplay
         {
             inputService = Services.Get<IInputService>();
             uiManager = Services.Get<UIManager>();
+            arenaBounds = Services.Get<IArenaBounds>();
             uiManager.ShowJoystick(false);
-            StartRound();
         }
-        
+
         private void Update()
         {
             if (State != RoundState.Serving)
@@ -42,12 +54,17 @@ namespace Smashball.Gameplay
             serveMeterTimer += Time.deltaTime * serveMeterSpeed;
             ServeQuality = Mathf.PingPong(serveMeterTimer, 1f);
         }
-        
+
+        public void StartGame()
+        {
+            StartRound();
+        }
+
         public bool IsStartingPlayer(PlayerController playerController)
         {
             return players[StartingPlayer] == playerController;
         }
-        
+
         private void ResetServeMeter()
         {
             serveMeterTimer = 0f;
@@ -56,20 +73,29 @@ namespace Smashball.Gameplay
 
         public PlayerController GetOtherPlayer(PlayerController player)
         {
-            if(player == players[0])
+            if (player == players[0])
                 return players[1];
             return players[0];
         }
 
         private void StartRound()
         {
+            playerScore = 0;
+            opponentScore = 0;
+            uiManager.UpdateScore(playerScore, opponentScore);
+
             if (CurrentBall == null)
+            {
                 CurrentBall = Instantiate(ballPrefab).GetComponent<BallController>();
-            
+                CurrentBall.Init(arenaBounds);                
+            }
+            CurrentBall.gameObject.SetActive(false);
+
             foreach (var player in players)
             {
                 Destroy(player.gameObject);
             }
+
             players.Clear();
 
             AddPlayer(true, true);
@@ -87,12 +113,12 @@ namespace Smashball.Gameplay
             {
                 var bot = go.AddComponent<BotController>();
                 bot.Init();
-                pc.Init(isTopPlayer, bot.Input);
+                pc.Init(isTopPlayer, bot.Input, this, arenaBounds);
             }
             else
             {
                 var humanInput = new HumanPlayerInput(inputService);
-                pc.Init(isTopPlayer, humanInput);
+                pc.Init(isTopPlayer, humanInput, this, arenaBounds);
             }
 
             players.Add(pc);
@@ -100,25 +126,44 @@ namespace Smashball.Gameplay
 
         public void OnServed()
         {
-            uiManager.ServeUI.Hide();
+            uiManager.ServeUI.Show(false);
             uiManager.ShowJoystick(true);
             State = RoundState.Playing;
         }
-        
-        public void OnPlayerHitByBall(PlayerController player)
+
+        public async Task OnPlayerHitByBall(PlayerController player)
         {
+            uiManager.ShowJoystick(false);
+            var playerHitOpponent = player == players[0];
+            if (playerHitOpponent)
+                playerScore++;
+            else
+                opponentScore++;
+            uiManager.UpdateScore(playerScore, opponentScore);
+            State = RoundState.Smashed;
+            CurrentBall.gameObject.SetActive(false);
+            await uiManager.ShowSmashedFeedback(player, playerHitOpponent);
+            if (opponentScore >= scoreToWin || playerScore >= scoreToWin)
+            {
+                State = RoundState.GameOver;
+                uiManager.ShowGameOverUI(playerScore >= scoreToWin);
+            }
+            else
+            {
+                DoServe(playerHitOpponent ? 0 : 1);
+            }
         }
 
         private void DoServe(int startingPlayer)
         {
-            StartingPlayer = 0;// startingPlayer;
+            foreach (var player in players)
+            {
+                player.ResetPosition();
+            }
+            StartingPlayer = startingPlayer;
             State = RoundState.Serving;
             ResetServeMeter();
-
-            if (StartingPlayer != 0)
-                uiManager.ServeUI.Show();
-            
-            CurrentBall.gameObject.SetActive(false);
+            uiManager.ServeUI.Show(StartingPlayer != 0);
         }
     }
 }

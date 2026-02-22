@@ -1,3 +1,5 @@
+using Smashball.UI;
+using Unity.VisualScripting;
 using UnityEngine;
 
 namespace Smashball.Gameplay
@@ -5,6 +7,7 @@ namespace Smashball.Gameplay
     public sealed class PlayerController : MonoBehaviour
     {
         [SerializeField] private GameObject rangeFeedback;
+        [SerializeField] private CapsuleCollider capsuleCollider;
         [SerializeField] private float moveSpeed = 6f;
         [SerializeField] private float rotateSpeed = 16f;
         [SerializeField] private float boundsPadding = 1f;
@@ -18,14 +21,19 @@ namespace Smashball.Gameplay
         private bool isTopPlayer;
         private float nextReleaseAllowedTime;
         
-        public void Init(bool isTopPlayer, IPlayerInput input)
+        public void Init(bool isTopPlayer, IPlayerInput input, IRoundService round, IArenaBounds bounds)
         {
             rangeFeedback.SetActive(!isTopPlayer);
             rangeFeedback.transform.localScale = 2f * new Vector3(strikeRadius, strikeRadius, 1f);
             this.isTopPlayer = isTopPlayer;
             this.input = input;
-            arenaBounds = Services.Get<IArenaBounds>();
-            roundManager = Services.Get<IRoundService>();
+            arenaBounds = bounds;
+            roundManager = round;
+            ResetPosition();
+        }
+
+        public void ResetPosition()
+        {
             transform.position = isTopPlayer ? arenaBounds.TopPlayerSpawnPosition : arenaBounds.BottomPlayerSpawnPosition;
         }
 
@@ -39,12 +47,53 @@ namespace Smashball.Gameplay
                     UpdateServe();
                     break;
                 case RoundState.Playing:
-                    UpdateMovement();
-                    UpdateStrike();
+                    if (!CheckBallCollision())
+                    {
+                        UpdateMovement();
+                        UpdateStrike();    
+                    }
+                    else
+                    {
+                        roundManager.OnPlayerHitByBall(this);
+                    }
                     break;
             }
         }
+
+        private bool CheckBallCollision()
+        {
+            var ball = roundManager.CurrentBall;
+            if (ball.LastStriker == this && Time.time < ball.IgnorePlayerCollisionUntilTime)
+                return false;
+
+            Vector3 prevBallPos = ball.PreviousPosition;
+            prevBallPos.y = 0f;
+            Vector3 ballPos = ball.transform.position;
+            ballPos.y = 0f;
+
+            Vector3 playerPosition = transform.position;
+            playerPosition.y = 0f;
+
+            float playerRadius = capsuleCollider.radius;
+            float r = playerRadius + ball.BallRadius;
+            float sqrDist = SqrDistancePointToSegmentXZ(playerPosition, prevBallPos, ballPos);
+            return sqrDist <= r * r;
+        }
         
+        private static float SqrDistancePointToSegmentXZ(Vector3 p, Vector3 a, Vector3 b)
+        {
+            Vector3 ab = b - a;
+            float abSqr = ab.sqrMagnitude;
+            if (abSqr < 1e-8f)
+                return (p - a).sqrMagnitude;
+
+            float t = Vector3.Dot(p - a, ab) / abSqr;
+            t = Mathf.Clamp01(t);
+
+            Vector3 closest = a + ab * t;
+            return (p - closest).sqrMagnitude;
+        }
+
         private bool CanConsumeRelease()
         {
             if (Time.time < nextReleaseAllowedTime)
@@ -79,7 +128,6 @@ namespace Smashball.Gameplay
 
         private void UpdateStrike()
         {
-            if (!input.ReleasedThisFrame) return;
             if (!CanConsumeRelease())
                 return;
             
@@ -97,8 +145,7 @@ namespace Smashball.Gameplay
 
             toBall.y = 0f;
             Vector3 dir = toBall.sqrMagnitude < 0.0001f ? transform.forward : toBall.normalized;
-
-            ball.ApplyStrike(dir, quality, roundManager.GetOtherPlayer(this));
+            ball.ApplyStrike(dir, quality, roundManager.GetOtherPlayer(this), this);
         }
         
         private static float ComputeQuality(float dist, float perfectR, float tolerance)
@@ -118,14 +165,14 @@ namespace Smashball.Gameplay
             var otherPlayer = roundManager.GetOtherPlayer(this);
             var ball = roundManager.CurrentBall;
 
-            ball.SetPosition(transform.position);
-            ball.gameObject.SetActive(true);
-
             var dir = (otherPlayer.transform.position - transform.position).normalized;
             float serveQuality = roundManager.ServeQuality;
 
+            ball.SetPosition(transform.position + dir);
+            ball.gameObject.SetActive(true);
+            
             roundManager.OnServed();
-            ball.ApplyStrike(dir, serveQuality, otherPlayer);
+            ball.ApplyStrike(dir, serveQuality, otherPlayer, this);
             nextReleaseAllowedTime = Time.time + strikeCooldownSeconds;
         }
     }

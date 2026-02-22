@@ -154,6 +154,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rangeFeedback: {fileID: 1674099300832542939}
+  capsuleCollider: {fileID: 816271494337162787}
   moveSpeed: 6
   rotateSpeed: 16
   boundsPadding: 1

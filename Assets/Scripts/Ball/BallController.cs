@@ -4,25 +4,32 @@ namespace Smashball.Gameplay
 {
     public sealed class BallController : MonoBehaviour
     {
+        [SerializeField] private SphereCollider sphereCollider;
         [SerializeField] private float turnRateDegPerSec = 180f;
         [SerializeField] private float minSpeed = 8f;
         [SerializeField] private float maxSpeed = 20f;
         [SerializeField] private float yOffset = 1.5f;
         [SerializeField] private float boundsPadding = 1f;
+        [SerializeField] private float collisionGraceSeconds = 0.12f;
+
+        public float BallRadius => sphereCollider.radius;
+        public PlayerController LastStriker { get; private set; }
+        public float IgnorePlayerCollisionUntilTime { get; private set; }
+        public Vector3 PreviousPosition { get; private set; }
         
         private IArenaBounds arenaBounds;
         private Vector3 velocity;
         private PlayerController targetPlayer;
 
-        private void Awake()
+        public void Init(IArenaBounds bounds)
         {
-            arenaBounds = Services.Get<IArenaBounds>();
+            arenaBounds = bounds;
         }
 
         private void FixedUpdate()
         {
             float dt = Time.fixedDeltaTime;
-
+            PreviousPosition = transform.position;
             Vector3 prevPos = transform.position;
             IntegrateWithBounce(prevPos, velocity, dt, out var nextPos, out var nextVel);
 
@@ -125,8 +132,9 @@ namespace Smashball.Gameplay
             velocity = newDir * speed;
         }
 
-        public void ApplyStrike(Vector3 direction, float quality, PlayerController target)
+        public void ApplyStrike(Vector3 direction, float quality, PlayerController target, PlayerController striker)
         {
+            LastStriker = striker;
             targetPlayer = target;
             direction.y = 0f;
             if (direction.sqrMagnitude < 0.0001f)
@@ -137,12 +145,14 @@ namespace Smashball.Gameplay
             float q = Mathf.Clamp01(quality);
             float speed = Mathf.Lerp(minSpeed, maxSpeed, q);
             velocity = direction * speed;
+            IgnorePlayerCollisionUntilTime = Time.time + collisionGraceSeconds;
         }
 
         public void SetPosition(Vector3 position)
         {
             position.y = yOffset;
             transform.position = position;
+            PreviousPosition = position;
         }
     }
 }
