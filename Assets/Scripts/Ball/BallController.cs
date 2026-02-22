@@ -11,7 +11,8 @@ namespace Smashball.Gameplay
         [SerializeField] private float yOffset = 1.5f;
         [SerializeField] private float boundsPadding = 1f;
         [SerializeField] private float collisionGraceSeconds = 0.12f;
-
+        [SerializeField] private BallTrailFX trailFx;
+        
         public float BallRadius => sphereCollider.radius;
         public PlayerController LastStriker { get; private set; }
         public float IgnorePlayerCollisionUntilTime { get; private set; }
@@ -149,6 +150,7 @@ namespace Smashball.Gameplay
             float speed = Mathf.Lerp(minSpeed, maxSpeed, q);
             velocity = direction * speed;
             IgnorePlayerCollisionUntilTime = Time.time + collisionGraceSeconds;
+            trailFx?.SetIntensityFromQuality(q);
         }
 
         public void SetPosition(Vector3 position)
