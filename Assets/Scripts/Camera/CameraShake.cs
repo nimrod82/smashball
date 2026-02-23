@@ -7,7 +7,11 @@ namespace Smashball.Gameplay
         [SerializeField] private float baseDuration = 0.15f;
         [SerializeField] private float maxAmplitude = 0.35f;
         [SerializeField] private float frequency = 35f;
-
+        [SerializeField] private float noiseOffsetA = 11.7f;
+        [SerializeField] private float noiseOffsetB = 23.4f;
+        [SerializeField] private float minAmplitude = 0.08f;
+        [SerializeField] private float minDuration = 0.08f;
+        
         private float shakeTimer;
         private float shakeDuration;
         private float amplitude;
@@ -39,8 +43,8 @@ namespace Smashball.Gameplay
 
                 phase += Time.deltaTime * frequency;
 
-                float noiseX = (Mathf.PerlinNoise(seedX + phase, seedY + 11.7f) - 0.5f) * 2f;
-                float noiseY = (Mathf.PerlinNoise(seedX + 23.4f, seedY + phase) - 0.5f) * 2f;
+                float noiseX = (Mathf.PerlinNoise(seedX + phase, seedY + noiseOffsetA) - 0.5f) * 2f;
+                float noiseY = (Mathf.PerlinNoise(seedX + noiseOffsetB, seedY + phase) - 0.5f) * 2f;
 
                 pos += new Vector3(noiseX, noiseY, 0f) * (amplitude * damper);
             }
@@ -48,12 +52,12 @@ namespace Smashball.Gameplay
             transform.localPosition = pos;
         }
 
-        public void Shake(float quality)
+        public void Shake(float amount)
         {
-            float q = Mathf.Clamp01(quality);
+            float amountClamped = Mathf.Clamp01(amount);
 
-            amplitude = Mathf.Lerp(0.08f, maxAmplitude, q);
-            shakeDuration = Mathf.Lerp(0.08f, baseDuration, q);
+            amplitude     = Mathf.Lerp(minAmplitude, maxAmplitude, amountClamped);
+            shakeDuration = Mathf.Lerp(minDuration, baseDuration, amountClamped);
 
             shakeTimer = shakeDuration;
             phase = Random.value * 1000f;

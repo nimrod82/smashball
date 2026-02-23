@@ -2,6 +2,6 @@ namespace Smashball.Gameplay
 {
     public interface ICameraShake
     {
-        void Shake(float quality);
+        void Shake(float amount);
     }
 }
